@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException
+import time
+from fastapi import FastAPI, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .database import get_db, engine
@@ -9,15 +10,30 @@ from .utils import save_upload_file
 from .tasks import process_document
 from .retriever import retrieve_chunks, construct_prompt
 from .llm import stream_completion, format_stream_event
+from .observability import record_request, render_metrics_text
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Knowledge Engine API")
 
 
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed = time.perf_counter() - start
+    record_request(request.url.path, elapsed)
+    return response
+
+
 @app.get("/")
 def read_root():
     return {"status": "online", "message": "Welcome to the AI Knowledge Engine API"}
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(content=render_metrics_text(), media_type="text/plain")
 
 
 @app.get("/test-db")
