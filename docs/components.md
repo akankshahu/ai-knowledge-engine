@@ -19,7 +19,7 @@ Overview: high-level responsibilities for each system component.
 
 - Vector Database (Postgres + pgvector):
   - Store chunk text, provenance metadata, and embedding vectors.
-  - Use HNSW/IVF indexes for ANN searches.
+  - Use HNSW or IVFFlat indexes for ANN searches.
   - Row-level security (RLS) or tenant partitioning for isolation.
 
 - Object Storage (S3 or MinIO):
