@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # Database with AI Vector capabilities
+  postgres:
+    image: ankane/pgvector:latest # Pre-built PostgreSQL image with pgvector installed
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret_password
+      POSTGRES_DB: knowledge_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # In-memory database for caching and Celery queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:
