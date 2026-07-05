@@ -4,8 +4,11 @@ from sqlalchemy import text
 from .database import get_db, engine
 from . import models
 from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse
 from .utils import save_upload_file
 from .tasks import process_document
+from .retriever import retrieve_chunks, construct_prompt
+from .llm import stream_completion, format_stream_event
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -74,3 +77,26 @@ def upload_status(doc_id: str, db: Session = Depends(get_db)):
     if not d:
         raise HTTPException(status_code=404, detail="document not found")
     return {"id": d.id, "name": d.name, "status": d.status}
+
+
+@app.post("/chat")
+async def chat_stream(query: str, tenant_id: str = None, db: Session = Depends(get_db)):
+    """Stream chat response with retrieval-augmented generation."""
+    if not query:
+        raise HTTPException(status_code=400, detail="query required")
+
+    # For MVP, use dummy embedding (zeros)
+    dummy_embedding = [0.0] * 1536
+
+    # Retrieve relevant chunks
+    chunks = retrieve_chunks(dummy_embedding, tenant_id or "default", limit=10, db=db)
+
+    # Construct prompt
+    prompt = construct_prompt(query, chunks)
+
+    # Stream LLM response
+    async def event_generator():
+        async for token in stream_completion(prompt):
+            yield format_stream_event(token)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
